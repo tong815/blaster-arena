@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blaster Arena</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="game-wrap">
+    <h1>Blaster Arena</h1>
+    <p id="info"></p>
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+    <section class="touch-controls" aria-label="Touch controls">
+      <div class="move-pad">
+        <button type="button" class="control-btn up" data-key="ArrowUp">Up</button>
+        <button type="button" class="control-btn left" data-key="ArrowLeft">Left</button>
+        <button type="button" class="control-btn down" data-key="ArrowDown">Down</button>
+        <button type="button" class="control-btn right" data-key="ArrowRight">Right</button>
+      </div>
+      <button type="button" class="control-btn shoot" data-key=" ">Shoot</button>
+    </section>
+
+    <button id="restartBtn" type="button">Restart</button>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

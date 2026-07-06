@@ -6,11 +6,32 @@ const controlButtons = document.querySelectorAll(".control-btn");
 const upgradeMenu = document.getElementById("upgradeMenu");
 const gunUpgradeBtn = document.getElementById("gunUpgradeBtn");
 const armorUpgradeBtn = document.getElementById("armorUpgradeBtn");
+const shieldBtn = document.getElementById("shieldBtn");
+const laserGunBtn = document.getElementById("laserGunBtn");
 
 const ENEMIES_PER_WAVE = 8;
 const SHOOT_DELAY = 200;
-const ARMOR_DAMAGE_REDUCTION = 3;
 const SCORE_UPGRADE_STEP = 10;
+const FINAL_BOSS_NUMBER = 4;
+const NORMAL_GUN_START_DAMAGE = 20;
+const NORMAL_GUN_MAX_DAMAGE = 100;
+const GUN_DAMAGE_UPGRADE = 10;
+const ARMOR_START_PERCENT = 5;
+const ARMOR_UPGRADE_PERCENT = 5;
+const ARMOR_MAX_PERCENT = 50;
+const ARMOR_HEALTH_UPGRADE = 10;
+const ARMOR_REPAIR_TIME = 10000;
+const SHIELD_UNLOCK_SCORE = 70;
+const SHIELD_DURATION = 15000;
+const LASER_UNLOCK_SCORE = 150;
+const LASER_DAMAGE = 140;
+
+const BOSS_LIST = [
+  { number: 1, wave: 5, health: 130, size: 80, damage: 30, speed: 1.1 },
+  { number: 2, wave: 10, health: 300, size: 95, damage: 45, speed: 1.25 },
+  { number: 3, wave: 15, health: 650, size: 110, damage: 65, speed: 1.4 },
+  { number: 4, wave: 20, health: 1200, size: 130, damage: 90, speed: 1.55 }
+];
 
 // This object remembers which keys are currently being held down.
 const keys = {};
@@ -28,7 +49,9 @@ let gameOver;
 let win;
 let waitingForUpgrade;
 let nextUpgradeScore;
-let bossHasSpawned;
+let spawnedBossNumbers;
+let bossPowerLevel;
+let shieldActiveUntil;
 let lastShotTime;
 let lastEnemySpawnTime;
 let lastBossHitTime;
@@ -41,10 +64,16 @@ function startGame() {
     y: canvas.height - 70,
     radius: 20,
     speed: 5,
+    maxHealth: 100,
     health: 100,
     gunLevel: 1,
-    armorLevel: 0,
-    bulletDamage: 20
+    armorLevel: 1,
+    normalGunDamage: NORMAL_GUN_START_DAMAGE,
+    bulletDamage: NORMAL_GUN_START_DAMAGE,
+    upgradedArmorProtection: ARMOR_START_PERCENT,
+    armorBroken: false,
+    armorRepairEndTime: 0,
+    weapon: "normal"
   };
 
   bullets = [];
@@ -57,12 +86,16 @@ function startGame() {
   win = false;
   waitingForUpgrade = false;
   nextUpgradeScore = SCORE_UPGRADE_STEP;
-  bossHasSpawned = false;
+  spawnedBossNumbers = [];
+  bossPowerLevel = 0;
+  shieldActiveUntil = 0;
   lastShotTime = 0;
   lastEnemySpawnTime = 0;
   lastBossHitTime = 0;
   restartBtn.style.display = "none";
   upgradeMenu.classList.remove("show");
+  updateUpgradeButtons();
+  updateItemButtons();
 
   if (animationId) {
     cancelAnimationFrame(animationId);
@@ -74,8 +107,12 @@ function startGame() {
 document.addEventListener("keydown", event => {
   keys[event.key] = true;
 
+  if (event.key.toLowerCase() === "s") {
+    activateShield();
+  }
+
   // Stop the browser page from scrolling during game controls.
-  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(event.key)) {
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " ", "s", "S"].includes(event.key)) {
     event.preventDefault();
   }
 });
@@ -83,7 +120,7 @@ document.addEventListener("keydown", event => {
 document.addEventListener("keyup", event => {
   keys[event.key] = false;
 
-  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(event.key)) {
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " ", "s", "S"].includes(event.key)) {
     event.preventDefault();
   }
 });
@@ -91,6 +128,8 @@ document.addEventListener("keyup", event => {
 restartBtn.addEventListener("click", startGame);
 gunUpgradeBtn.addEventListener("click", upgradeGun);
 armorUpgradeBtn.addEventListener("click", upgradeArmor);
+shieldBtn.addEventListener("click", activateShield);
+laserGunBtn.addEventListener("click", equipLaserGun);
 
 // Touch controls use the same key names as the keyboard controls.
 for (const button of controlButtons) {
@@ -160,7 +199,8 @@ function handleShooting(time) {
       y: player.y - player.radius,
       radius: 6,
       speed: 8,
-      damage: player.bulletDamage
+      damage: getCurrentBulletDamage(),
+      weapon: player.weapon
     });
 
     lastShotTime = time;
@@ -176,8 +216,8 @@ function moveBullets() {
 }
 
 function spawnEnemy(time) {
-  // Higher waves lower the delay, so enemies spawn faster over time.
-  const spawnDelay = Math.max(250, 1200 - wave * 80);
+  // Higher waves and defeated bosses lower the delay, so enemies spawn faster over time.
+  const spawnDelay = Math.max(180, 1200 - wave * 80 - bossPowerLevel * 120);
 
   if (time - lastEnemySpawnTime < spawnDelay) {
     return;
@@ -193,9 +233,9 @@ function spawnEnemy(time) {
     x: 30 + Math.random() * (canvas.width - 60),
     y: -30,
     size: isStrong ? 32 : 24,
-    health: baseHealth + (wave - 1) * 8,
-    damage: baseDamage + (wave - 1) * 2,
-    speed: baseSpeed + (wave - 1) * 0.15,
+    health: baseHealth + (wave - 1) * 8 + bossPowerLevel * 25,
+    damage: baseDamage + (wave - 1) * 2 + bossPowerLevel * 6,
+    speed: baseSpeed + (wave - 1) * 0.15 + bossPowerLevel * 0.35,
     strong: isStrong
   });
 
@@ -203,20 +243,30 @@ function spawnEnemy(time) {
 }
 
 function spawnBossIfNeeded() {
-  // The boss appears one time when Wave 5 begins.
-  if (wave === 5 && !bossHasSpawned) {
-    boss = {
-      x: canvas.width / 2,
-      y: 60,
-      size: 80,
-      maxHealth: 130,
-      health: 130,
-      damage: 30,
-      speed: 1.1
-    };
-
-    bossHasSpawned = true;
+  if (boss || win) {
+    return;
   }
+
+  const bossData = BOSS_LIST.find(bossInfo => {
+    return bossInfo.wave <= wave && !spawnedBossNumbers.includes(bossInfo.number);
+  });
+
+  if (!bossData) {
+    return;
+  }
+
+  boss = {
+    x: canvas.width / 2,
+    y: 60,
+    number: bossData.number,
+    size: bossData.size,
+    maxHealth: bossData.health,
+    health: bossData.health,
+    damage: bossData.damage,
+    speed: bossData.speed
+  };
+
+  spawnedBossNumbers.push(bossData.number);
 }
 
 function moveEnemies() {
@@ -251,9 +301,7 @@ function checkBulletHits() {
       bulletWasUsed = true;
 
       if (boss.health <= 0) {
-        boss = null;
-        win = true;
-        restartBtn.style.display = "inline-block";
+        defeatBoss();
       }
     }
 
@@ -282,6 +330,19 @@ function checkBulletHits() {
   }
 }
 
+function defeatBoss() {
+  const defeatedBossNumber = boss.number;
+  boss = null;
+  bossPowerLevel++;
+  lastEnemySpawnTime = performance.now();
+
+  if (defeatedBossNumber === FINAL_BOSS_NUMBER) {
+    enemies = [];
+    win = true;
+    restartBtn.style.display = "inline-block";
+  }
+}
+
 function updateWaveIfNeeded() {
   if (defeatedThisWave < ENEMIES_PER_WAVE) {
     return;
@@ -294,7 +355,9 @@ function updateWaveIfNeeded() {
 }
 
 function showUpgradeIfNeeded() {
-  if (waitingForUpgrade || score < nextUpgradeScore) {
+  updateUpgradeButtons();
+
+  if (waitingForUpgrade || score < nextUpgradeScore || !canChooseAnyUpgrade()) {
     return;
   }
 
@@ -302,14 +365,41 @@ function showUpgradeIfNeeded() {
   upgradeMenu.classList.add("show");
 }
 
+function updateUpgradeButtons() {
+  const gunIsMaxed = player.normalGunDamage >= NORMAL_GUN_MAX_DAMAGE;
+  const armorIsMaxed = player.upgradedArmorProtection >= ARMOR_MAX_PERCENT;
+
+  gunUpgradeBtn.hidden = gunIsMaxed;
+  gunUpgradeBtn.disabled = gunIsMaxed;
+  armorUpgradeBtn.hidden = armorIsMaxed;
+  armorUpgradeBtn.disabled = armorIsMaxed;
+}
+
+function canChooseAnyUpgrade() {
+  return player.normalGunDamage < NORMAL_GUN_MAX_DAMAGE ||
+    player.upgradedArmorProtection < ARMOR_MAX_PERCENT;
+}
+
 function upgradeGun() {
-  player.gunLevel++;
-  player.bulletDamage += 10;
+  if (player.normalGunDamage >= NORMAL_GUN_MAX_DAMAGE) {
+    return;
+  }
+
+  player.normalGunDamage = Math.min(NORMAL_GUN_MAX_DAMAGE, player.normalGunDamage + GUN_DAMAGE_UPGRADE);
+  player.gunLevel = Math.floor((player.normalGunDamage - NORMAL_GUN_START_DAMAGE) / GUN_DAMAGE_UPGRADE) + 1;
+  player.bulletDamage = getCurrentBulletDamage();
   finishUpgrade();
 }
 
 function upgradeArmor() {
+  if (player.upgradedArmorProtection >= ARMOR_MAX_PERCENT) {
+    return;
+  }
+
   player.armorLevel++;
+  player.upgradedArmorProtection = Math.min(ARMOR_MAX_PERCENT, player.upgradedArmorProtection + ARMOR_UPGRADE_PERCENT);
+  player.maxHealth += ARMOR_HEALTH_UPGRADE;
+  player.health = Math.min(player.maxHealth, player.health + ARMOR_HEALTH_UPGRADE);
   finishUpgrade();
 }
 
@@ -321,6 +411,7 @@ function finishUpgrade() {
   const now = performance.now();
   lastEnemySpawnTime = now;
   lastBossHitTime = now;
+  updateUpgradeButtons();
   updateInfo();
   showUpgradeIfNeeded();
 }
@@ -331,14 +422,14 @@ function checkPlayerHits(time) {
     const enemy = enemies[enemyIndex];
 
     if (circleTouchesSquare(player, enemy)) {
-      player.health -= reduceDamage(enemy.damage);
+      applyPlayerDamage(enemy.damage, time);
       enemies.splice(enemyIndex, 1);
     }
   }
 
   // Boss damage has a short cooldown so one touch does not drain health instantly.
   if (boss && time - lastBossHitTime > 700 && circleTouchesSquare(player, boss)) {
-    player.health -= reduceDamage(boss.damage);
+    applyPlayerDamage(boss.damage, time);
     lastBossHitTime = time;
   }
 
@@ -349,9 +440,69 @@ function checkPlayerHits(time) {
   }
 }
 
-function reduceDamage(damage) {
-  const armorReduction = player.armorLevel * ARMOR_DAMAGE_REDUCTION;
-  return Math.max(1, damage - armorReduction);
+function applyPlayerDamage(damage, time) {
+  if (isShieldActive(time)) {
+    return;
+  }
+
+  const armorProtection = getActiveArmorProtection();
+  const finalDamage = Math.max(1, Math.ceil(damage * (1 - armorProtection / 100)));
+  player.health -= finalDamage;
+
+  if (armorProtection > 0) {
+    breakArmor(time);
+  }
+}
+
+function getActiveArmorProtection() {
+  return player.armorBroken ? 0 : player.upgradedArmorProtection;
+}
+
+function breakArmor(time) {
+  player.armorBroken = true;
+  player.armorRepairEndTime = time + ARMOR_REPAIR_TIME;
+}
+
+function updateTimedPowerups(time) {
+  if (player.armorBroken && time >= player.armorRepairEndTime) {
+    player.armorBroken = false;
+    player.armorRepairEndTime = 0;
+  }
+
+  if (shieldActiveUntil && time >= shieldActiveUntil) {
+    shieldActiveUntil = 0;
+  }
+}
+
+function isShieldActive(time) {
+  return score >= SHIELD_UNLOCK_SCORE && time < shieldActiveUntil;
+}
+
+function activateShield() {
+  const now = performance.now();
+
+  if (score < SHIELD_UNLOCK_SCORE || gameOver || win || isShieldActive(now)) {
+    return;
+  }
+
+  shieldActiveUntil = now + SHIELD_DURATION;
+  updateItemButtons();
+  updateInfo();
+}
+
+function equipLaserGun() {
+  if (score < LASER_UNLOCK_SCORE || gameOver || win) {
+    return;
+  }
+
+  player.weapon = "laser";
+  player.bulletDamage = getCurrentBulletDamage();
+  updateItemButtons();
+  updateInfo();
+}
+
+function getCurrentBulletDamage() {
+  return player.weapon === "laser" ? LASER_DAMAGE : player.normalGunDamage;
 }
 
 function circleTouchesSquare(circle, square) {
@@ -365,6 +516,7 @@ function circleTouchesSquare(circle, square) {
 }
 
 function update(time) {
+  updateTimedPowerups(time);
   movePlayer();
   handleShooting(time);
   moveBullets();
@@ -408,7 +560,7 @@ function drawBossHealthBar() {
 
   ctx.fillStyle = "white";
   ctx.font = "14px Arial";
-  ctx.fillText("Boss Health", x + 132, y + 14);
+  ctx.fillText("Boss " + boss.number + " Health", x + 122, y + 14);
 }
 
 function drawPlayer() {
@@ -467,19 +619,73 @@ function drawMessage() {
 }
 
 function updateInfo() {
-  const bossHealth = boss ? Math.max(0, Math.ceil(boss.health)) : "None";
+  const now = performance.now();
+  updateTimedPowerups(now);
+  updateItemButtons();
 
-  info.textContent =
-    "Health: " + Math.ceil(player.health) +
+  let statusText =
+    "Health: " + Math.ceil(player.health) + "/" + player.maxHealth +
     " | Score: " + score +
     " | Wave: " + wave +
+    " | Weapon: " + getWeaponName() +
     " | Gun Level: " + player.gunLevel +
-    " | Armor Level: " + player.armorLevel +
-    " | Bullet Damage: " + player.bulletDamage +
-    " | Boss HP: " + bossHealth;
+    " | Bullet Damage: " + getCurrentBulletDamage() +
+    " | " + getArmorStatusText(now) +
+    " | " + getShieldStatusText(now);
+
+  if (boss) {
+    statusText += " | Boss " + boss.number + " HP: " + Math.max(0, Math.ceil(boss.health));
+  }
+
+  info.textContent = statusText;
+}
+
+function getWeaponName() {
+  return player.weapon === "laser" ? "Laser Gun" : "Normal Gun";
+}
+
+function getArmorStatusText(time) {
+  if (!player.armorBroken) {
+    return "Armor: " + player.upgradedArmorProtection + "%";
+  }
+
+  const repairSeconds = Math.max(0, Math.ceil((player.armorRepairEndTime - time) / 1000));
+
+  if (repairSeconds > 0) {
+    return "Armor: Broken | Armor Repairing: " + repairSeconds + "s";
+  }
+
+  return "Armor: Broken";
+}
+
+function getShieldStatusText(time) {
+  if (score < SHIELD_UNLOCK_SCORE) {
+    return "Shield: Locked";
+  }
+
+  if (isShieldActive(time)) {
+    const shieldSeconds = Math.max(0, Math.ceil((shieldActiveUntil - time) / 1000));
+    return "Shield: Active " + shieldSeconds + "s";
+  }
+
+  return "Shield: Ready";
+}
+
+function updateItemButtons() {
+  const now = performance.now();
+  const shieldUnlocked = score >= SHIELD_UNLOCK_SCORE;
+  const laserUnlocked = score >= LASER_UNLOCK_SCORE;
+
+  shieldBtn.disabled = !shieldUnlocked || isShieldActive(now) || gameOver || win;
+  shieldBtn.textContent = shieldUnlocked ? (isShieldActive(now) ? "Shield Active" : "Use Shield (S)") : "Shield Locked";
+
+  laserGunBtn.disabled = !laserUnlocked || player.weapon === "laser" || gameOver || win;
+  laserGunBtn.textContent = laserUnlocked ? (player.weapon === "laser" ? "Laser Equipped" : "Equip Laser Gun") : "Laser Locked";
 }
 
 function gameLoop(time) {
+  updateTimedPowerups(time);
+
   if (!gameOver && !win && !waitingForUpgrade) {
     update(time);
   }

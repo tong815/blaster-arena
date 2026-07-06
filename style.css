@@ -158,6 +158,26 @@ button:active,
   background: #8a6500;
 }
 
+.action-controls {
+  width: min(96vw, 800px);
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.item-btn {
+  min-width: min(46vw, 220px);
+  background: #265b83;
+}
+
+.item-btn:disabled,
+.upgrade-menu button:disabled {
+  color: #bbb;
+  background: #333;
+  border-color: #777;
+  transform: none;
+}
+
 #restartBtn {
   display: none;
   background: #0b5f9c;
@@ -179,5 +199,14 @@ button:active,
 
   .shoot {
     min-height: 104px;
+  }
+
+  .action-controls {
+    gap: 8px;
+  }
+
+  .item-btn {
+    min-height: 48px;
+    font-size: 16px;
   }
 }

@@ -1,0 +1,183 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  touch-action: none;
+}
+
+body {
+  text-align: center;
+  font-family: Arial, sans-serif;
+  background: #222;
+  color: white;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.game-wrap {
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(24px, 5vw, 40px);
+}
+
+#info {
+  width: min(96vw, 800px);
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 2px solid white;
+  border-radius: 6px;
+  background: #111;
+  font-size: clamp(13px, 2.2vw, 16px);
+  font-weight: bold;
+  line-height: 1.35;
+}
+
+.arena {
+  position: relative;
+  width: min(96vw, 800px, calc(52vh * 1.6));
+  aspect-ratio: 8 / 5;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  background: #111;
+  border: 3px solid white;
+  display: block;
+}
+
+.upgrade-menu {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 3px solid white;
+}
+
+.upgrade-menu.show {
+  display: flex;
+}
+
+.upgrade-menu h2 {
+  margin: 0 0 8px;
+  font-size: clamp(26px, 5vw, 44px);
+}
+
+.upgrade-menu button {
+  width: min(88%, 330px);
+  min-height: 64px;
+  background: #135d46;
+}
+
+.upgrade-menu button + button {
+  background: #7a3b16;
+}
+
+button {
+  padding: 10px 20px;
+  border: 2px solid white;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+  background: #444;
+}
+
+button:active,
+.control-btn.active {
+  background: #777;
+  transform: scale(0.97);
+}
+
+.touch-controls {
+  width: min(96vw, 800px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  touch-action: none;
+}
+
+.move-pad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(62px, 1fr));
+  grid-template-areas:
+    ". up ."
+    "left down right";
+  gap: 8px;
+  width: min(58vw, 330px);
+}
+
+.control-btn {
+  min-width: 62px;
+  min-height: 54px;
+  touch-action: none;
+}
+
+.up {
+  grid-area: up;
+}
+
+.left {
+  grid-area: left;
+}
+
+.down {
+  grid-area: down;
+}
+
+.right {
+  grid-area: right;
+}
+
+.shoot {
+  min-width: min(32vw, 180px);
+  min-height: 116px;
+  background: #8a6500;
+}
+
+#restartBtn {
+  display: none;
+  background: #0b5f9c;
+}
+
+@media (max-height: 720px) {
+  .game-wrap {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .arena {
+    width: min(96vw, 800px, calc(48vh * 1.6));
+  }
+
+  .control-btn {
+    min-height: 48px;
+  }
+
+  .shoot {
+    min-height: 104px;
+  }
+}

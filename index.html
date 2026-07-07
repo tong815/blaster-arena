@@ -9,33 +9,53 @@
 <body>
   <main class="game-wrap">
     <h1>Blaster Arena</h1>
-    <p id="info"></p>
-    <div class="arena">
-      <canvas id="gameCanvas" width="800" height="500"></canvas>
 
-      <section id="upgradeMenu" class="upgrade-menu" aria-modal="true" aria-labelledby="upgradeTitle">
-        <h2 id="upgradeTitle">Choose an Upgrade</h2>
-        <button id="gunUpgradeBtn" type="button">Upgrade Gun</button>
-        <button id="armorUpgradeBtn" type="button">Upgrade Armor</button>
-      </section>
-    </div>
+    <div class="game-layout">
+      <aside class="control-panel" aria-label="Game controls">
+        <section class="panel-section">
+          <h2>Weapons</h2>
+          <button id="normalGunBtn" type="button" class="panel-btn">1 Normal Gun</button>
+          <button id="laserGunBtn" type="button" class="panel-btn">2 Laser Gun</button>
+        </section>
 
-    <section class="touch-controls" aria-label="Touch controls">
-      <div class="move-pad">
-        <button type="button" class="control-btn up" data-key="ArrowUp">Up</button>
-        <button type="button" class="control-btn left" data-key="ArrowLeft">Left</button>
-        <button type="button" class="control-btn down" data-key="ArrowDown">Down</button>
-        <button type="button" class="control-btn right" data-key="ArrowRight">Right</button>
+        <section class="panel-section">
+          <h2>Skills</h2>
+          <button id="rocketBtn" type="button" class="panel-btn">3 Rocket Launcher</button>
+          <button id="minigunBtn" type="button" class="panel-btn">4 Minigun</button>
+          <button id="molotovBtn" type="button" class="panel-btn">5 Molotov</button>
+        </section>
+
+        <section class="panel-section">
+          <h2>Items</h2>
+          <button id="shieldBtn" type="button" class="panel-btn">Shield</button>
+        </section>
+
+        <section id="upgradeMenu" class="panel-section upgrade-menu" aria-labelledby="upgradeTitle">
+          <h2 id="upgradeTitle">Upgrades</h2>
+          <button id="gunUpgradeBtn" type="button" class="panel-btn">1 Upgrade Gun</button>
+          <button id="armorUpgradeBtn" type="button" class="panel-btn">2 Upgrade Armor</button>
+        </section>
+
+        <section class="touch-controls" aria-label="Touch controls">
+          <div class="move-pad">
+            <button type="button" class="control-btn up" data-key="ArrowUp">Up</button>
+            <button type="button" class="control-btn left" data-key="ArrowLeft">Left</button>
+            <button type="button" class="control-btn down" data-key="ArrowDown">Down</button>
+            <button type="button" class="control-btn right" data-key="ArrowRight">Right</button>
+          </div>
+          <button type="button" class="control-btn shoot" data-key=" ">Shoot</button>
+        </section>
+
+        <button id="restartBtn" type="button">Restart</button>
+      </aside>
+
+      <div class="game-area">
+        <p id="info"></p>
+        <div class="arena">
+          <canvas id="gameCanvas" width="1150" height="680"></canvas>
+        </div>
       </div>
-      <button type="button" class="control-btn shoot" data-key=" ">Shoot</button>
-    </section>
-
-    <section class="action-controls" aria-label="Item controls">
-      <button id="shieldBtn" type="button" class="item-btn">Shield Locked</button>
-      <button id="laserGunBtn" type="button" class="item-btn">Laser Locked</button>
-    </section>
-
-    <button id="restartBtn" type="button">Restart</button>
+    </div>
   </main>
   <script src="app.js"></script>
 </body>
